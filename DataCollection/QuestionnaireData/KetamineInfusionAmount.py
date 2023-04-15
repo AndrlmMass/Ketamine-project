@@ -1,67 +1,66 @@
-import numpy as np
+#Import relevant libraries
+from scipy.interpolate import make_interp_spline
 import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter
+import numpy as np
 
-# Define the one-compartment pharmacokinetic model
-def one_compartment_model(param, t, dose, weight, stop_time):
-    # Extract the parameters
-    Vd, Kel = param
-    
-    # Calculate the clearance
-    Cl = Kel * weight
-    
-    # Initialize an array to store the ketamine concentration at each time step
-    Cp = np.zeros(len(t))
-    
-    # Loop through each time step
-    for i, t_i in enumerate(t):
-        # If it's the first time step
+#Define weight and doses
+time_stamps = [0,5,10,15,20,25,30,35,40,45,50,55,60]
+
+def ketamine_amount(doses, time_stamps):
+    halflife = 150 #minutes
+    ketamine_amount = []
+    for i in range(len(time_stamps)):
         if i == 0:
-            # Calculate the initial ketamine concentration using the initial dose
-            Cp[i] = dose[i] / Vd
+            ketamine_amount.append(doses[i])
         else:
-            # If the infusion is still ongoing
-            if t_i < stop_time:
-                # Calculate the current ketamine concentration using the previous concentration and the new dose
-                Cp[i] = (dose[i] / Vd) + (Cp[i-1] * np.exp(-Kel * (t_i - t[i-1])))
-            # If the infusion has stopped
-            else:
-                # Calculate the current ketamine concentration using only the previous concentration
-                Cp[i] = Cp[i-1] * np.exp(-Kel * (t_i - t[i-1]))
-    # Return the array of ketamine concentrations
-    return Cp
+            ketamine_amount.append(ketamine_amount[i-1]*np.exp(-np.log(2)*time_stamps[i]/halflife) + doses[i])
+    time_stamps = np.array(time_stamps)
+    ketamine_amount = np.array(ketamine_amount)
+    X_Y_Spline = make_interp_spline(time_stamps, ketamine_amount)
+    # Returns evenly spaced numbers
+    # over a specified interval.
+    X_ = np.linspace(time_stamps.min(), time_stamps.max(), 500)
+    Y_ = X_Y_Spline(X_)
+    return X_, Y_
 
-# Define the time period for simulation
-t = np.arange(0, 120, 10)
+#SD5001
+doses = [0,6.0,2.0,1.5,1.5,1.0,0,0,0,0,0,0,0]
+SD01_x,SD01_y = ketamine_amount(doses, time_stamps)
 
-# Define the time the infusion stops
-stop_time = 40 # minutes
+#SD5002
+doses = [0,21.0,1.5,1.0,1.0,0,0,0,0,0,0,0,0]
+SD02_x,SD02_y = ketamine_amount(doses, time_stamps)
 
-# Define the weight of the patient
-weight = 70 # kg
+#SD5007
+doses = [0,4.0,2.0,1.5,1.0,1.0,0,0,0,0,0,0,0]
+SD07_x,SD07_y = ketamine_amount(doses, time_stamps)
 
-# Define the infusion amounts at each time step
-dose = np.zeros(len(t))
-for i, t_i in enumerate(t):
-    if t_i < stop_time:
-        dose[i] = 2 * weight # mg/kg/hr * weight (kg)
-    else:
-        dose[i] = 0
+#SD5008
+doses = [0,5.0,2.0,1.0,1.0,1.0,0,0,0,0,0,0,0]
+SD08_x,SD08_y = ketamine_amount(doses, time_stamps)
 
-# Define the initial guesses for the parameters
-Vd0 = weight
-Kel0 = 1 / weight
-param0 = [Vd0, Kel0]
+#SD5009
+doses = [0,10.0,0,0,0,0,0,0,0,0,0,0,0]
+SD09_x,SD09_y = ketamine_amount(doses, time_stamps)
 
-# Compute the estimated ketamine concentration over time
-Cp = one_compartment_model(param0, t, dose, weight, stop_time)
+#SD5010
+doses = [0,7.0,1.0,1.5,1.0,0.5,0,0,0,0,0,0,0]
+SD10_x,SD10_y = ketamine_amount(doses, time_stamps)
 
-# Apply a moving average filter to the data
-Cp_smooth = savgol_filter(Cp, 5, 4)
-
-# Plot the estimated ketamine concentration over time
-plt.plot(t, Cp_smooth)
+# Plotting the Graph
+plt.plot(SD01_x, SD01_y, label = 'SD5001')
+plt.plot(SD02_x, SD02_y, label = 'SD5002')
+plt.plot(SD07_x, SD07_y, label = 'SD5007')
+plt.plot(SD08_x, SD08_y, label = 'SD5008')
+plt.plot(SD09_x, SD09_y, label = 'SD5009', color = 'black', linestyle = '--', linewidth = 2)
+plt.plot(SD10_x, SD10_y, label = 'SD5010')
+#plt.plot(SD01_x, (SD01_y+SD02_y+SD07_y+SD08_y+SD09_y+SD10_y)/6, label = 'Average Response', color = 'black', linestyle = '--', linewidth = 2)
+plt.title('Ketamine Infusion Amount')
 plt.xlabel('Time (minutes)')
-plt.ylabel('Ketamine Concentration (mg/L)')
+plt.ylabel('Ketamine (mg/kg)')
+plt.legend()
 plt.show()
+
+
+
 
